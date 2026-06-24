@@ -1,6 +1,8 @@
 # c
 COLOR_ORANGE = (255,128,0)
 COLOR_WHITE = (255,255,255)
+COLOR_GREY = [51, 51, 51]
+COLOR_YELLOW = [255, 255, 0]
 
 # M
 MENU_OPTIONS = ('New Game 1p',
@@ -10,6 +12,6 @@ MENU_OPTIONS = ('New Game 1p',
                 'EXIT')
 
 # W
-WIN_WIDTH = 405
-WIN_HEIGHT = 720
+WIN_WIDTH = 1529
+WIN_HEIGHT = 505
 
