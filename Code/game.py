@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pygame
+import sys
 
 from Code.Menu import Menu
 from Code.const import WIN_HEIGHT, WIN_WIDTH, MENU_OPTIONS
@@ -56,4 +57,4 @@ class Game:
 
             elif menu_return == MENU_OPTIONS[4]:
                 pygame.quit()
-                quit()
+                sys.exit()
