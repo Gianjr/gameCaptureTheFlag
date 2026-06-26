@@ -102,7 +102,7 @@ class Enemy:
         if now - self.last_shot_time >= self.shoot_delay:
             self.last_shot_time = now
 
-            # Pequena variação para o tiro não ficar sempre igual
+
             aim_offset_x = random.randint(-25, 25)
             aim_offset_y = random.randint(-20, 20)
 

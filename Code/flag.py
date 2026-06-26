@@ -11,7 +11,7 @@ class Flag:
         self.start_position = position
         self.carried = False
 
-        # Tamanho desejado da bandeira
+        #flag size
         self.width = 46
         self.height = 46
 

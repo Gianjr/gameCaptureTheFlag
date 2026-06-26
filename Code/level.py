@@ -46,7 +46,7 @@ class Level:
         self.level_completed = False
         self.paused = False
 
-        # Efeitos de tela
+        #screen effects
         self.show_level_intro = True
         self.level_intro_start = pygame.time.get_ticks()
         self.level_intro_duration = 1800
@@ -338,7 +338,6 @@ class Level:
         for bullet in self.bullets[:]:
             bullet.update()
 
-            # Hitbox real da bala, sem aumentar
             if bullet.rect.colliderect(player.rect):
                 self.bullets.remove(bullet)
                 self.player_take_damage()
@@ -348,9 +347,6 @@ class Level:
                 self.bullets.remove(bullet)
 
     def draw_hud(self):
-        # ==========================
-        # Balão transparente superior esquerdo
-        # ==========================
 
         hud_panel = pygame.Surface((430, 85), pygame.SRCALPHA)
         hud_panel.fill((0, 0, 0, 95))
@@ -365,7 +361,7 @@ class Level:
 
         self.window.blit(hud_panel, (20, 20))
 
-        # Bandeiras
+        # Flags
         flag_text = self.font.render(
             f"Bandeiras: {self.score}/{self.max_score}",
             True,
@@ -374,7 +370,7 @@ class Level:
 
         self.window.blit(flag_text, (40, 43))
 
-        # Vidas na frente das informações da bandeira
+        # Hearts
         heart_start_x = 280
         heart_y = 40
 
@@ -391,9 +387,7 @@ class Level:
                     (heart_start_x + i * 45, heart_y)
                 )
 
-        # ==========================
-        # Nível no topo central
-        # ==========================
+        # Level
 
         level_panel = pygame.Surface((180, 55), pygame.SRCALPHA)
         level_panel.fill((0, 0, 0, 95))
@@ -660,7 +654,6 @@ class Level:
         return None
 
     def draw_game_world(self):
-        # Limpa a tela inteira antes de redesenhar tudo
         self.window.fill((0, 0, 0))
 
         for ent in self.entity_list:
@@ -675,8 +668,6 @@ class Level:
 
         for enemy in self.enemies:
             self.window.blit(enemy.surf, enemy.rect)
-
-        # Desenha balas apenas dentro da área do mapa
         map_area = pygame.Rect(
             0,
             0,

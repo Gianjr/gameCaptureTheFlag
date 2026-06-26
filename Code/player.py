@@ -17,10 +17,7 @@ class Player(Entity):
         self.velocity_y = 0
 
         self.on_ground = False
-
-        # evita pulo infinito segurando ↑
         self.jump_pressed = False
-
         self.facing_right = True
 
         self.idle = [
@@ -89,19 +86,19 @@ class Player(Entity):
 
         moving = False
 
-        # esquerda
+        # left
         if keys[pygame.K_LEFT]:
             self.rect.x -= self.speed
             moving = True
             self.facing_right = False
 
-        # direita
+        # right
         if keys[pygame.K_RIGHT]:
             self.rect.x += self.speed
             moving = True
             self.facing_right = True
 
-        # pulo apenas quando aperta
+        # jump
         if keys[pygame.K_UP]:
 
             if not self.jump_pressed:
@@ -136,7 +133,7 @@ class Player(Entity):
                     self.velocity_y = 0
                     self.on_ground = True
 
-        # animações
+        # animate
 
         if not self.on_ground:
 
