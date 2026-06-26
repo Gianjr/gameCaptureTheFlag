@@ -14,7 +14,8 @@ class Game:
         pygame.mixer.init()
 
         self.window = pygame.display.set_mode(
-            (WIN_WIDTH, WIN_HEIGHT)
+            (WIN_WIDTH, WIN_HEIGHT),
+            pygame.FULLSCREEN | pygame.SCALED
         )
 
         pygame.display.set_caption("Capture The Flag")
@@ -29,8 +30,7 @@ class Game:
 
         while True:
 
-            # Música do menu
-            self.play_music("./assets/music/musica_menu.wav", 0.35)
+            self.play_music("./assets/music/menu_music.wav", 0.35)
 
             menu = Menu(self.window)
             menu_return = menu.run()
@@ -41,8 +41,7 @@ class Game:
                 MENU_OPTIONS[2]
             ]:
 
-                # Música da fase
-                self.play_music("./assets/music/MC Hammer - U Can't Touch This (HQ).mp3", 0.35)
+                self.play_music("./assets/music/The Last Encounter (90s RPG Version).mp3", 0.35)
 
                 level = Level(
                     self.window,
@@ -52,9 +51,9 @@ class Game:
 
                 level_return = level.run()
 
+                if level_return == "menu":
+                    continue
+
             elif menu_return == MENU_OPTIONS[4]:
                 pygame.quit()
                 quit()
-
-            else:
-                pass

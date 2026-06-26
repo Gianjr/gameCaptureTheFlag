@@ -10,18 +10,19 @@ class Player(Entity):
     def __init__(self, position):
         super().__init__("player/Biker_idle/sprite_0", position)
 
-        self.speed = 2
+        self.speed = 4
 
-        # Física
+        self.gravity = 0.7
+        self.jump_force = -14
         self.velocity_y = 0
-        self.gravity = 0.8
-        self.jump_force = -16
+
         self.on_ground = False
 
-        # Direção
+        # evita pulo infinito segurando ↑
+        self.jump_pressed = False
+
         self.facing_right = True
 
-        # Animações
         self.idle = [
             pygame.image.load("./assets/player/Biker_idle/sprite_0.png").convert_alpha(),
             pygame.image.load("./assets/player/Biker_idle/sprite_1.png").convert_alpha(),
@@ -45,96 +46,114 @@ class Player(Entity):
             pygame.image.load("./assets/player/Biker_jump/sprite_3.png").convert_alpha()
         ]
 
-        self.state = "idle"
         self.frame = 0
-        self.animation_speed = 0.20
+        self.animation_speed = 0.18
+
+        self.state = "idle"
 
         self.surf = self.idle[0]
 
-    def get_current_frame(self):
+    def animate(self):
+
+        self.frame += self.animation_speed
+
         if self.state == "idle":
+
+            if self.frame >= len(self.idle):
+                self.frame = 0
+
             image = self.idle[int(self.frame)]
 
         elif self.state == "run":
+
+            if self.frame >= len(self.run):
+                self.frame = 0
+
             image = self.run[int(self.frame)]
 
-        elif self.state == "jump":
-            image = self.jump[int(self.frame)]
-
         else:
-            image = self.idle[0]
+
+            if self.frame >= len(self.jump):
+                self.frame = 0
+
+            image = self.jump[int(self.frame)]
 
         if not self.facing_right:
             image = pygame.transform.flip(image, True, False)
 
-        return image
-
-    def animate(self):
-        self.frame += self.animation_speed
-
-        if self.state == "idle":
-            if self.frame >= len(self.idle):
-                self.frame = 0
-
-        elif self.state == "run":
-            if self.frame >= len(self.run):
-                self.frame = 0
-
-        elif self.state == "jump":
-            if self.frame >= len(self.jump):
-                self.frame = 0
-
-        self.surf = self.get_current_frame()
+        self.surf = image
 
     def update(self, platforms):
+
         keys = pygame.key.get_pressed()
 
         moving = False
 
-        # Movimento para esquerda
+        # esquerda
         if keys[pygame.K_LEFT]:
             self.rect.x -= self.speed
-            self.facing_right = False
             moving = True
+            self.facing_right = False
 
-        # Movimento para direita
+        # direita
         if keys[pygame.K_RIGHT]:
             self.rect.x += self.speed
-            self.facing_right = True
             moving = True
+            self.facing_right = True
 
-        # Pulo com seta para cima
-        if keys[pygame.K_UP] and self.on_ground:
-            self.velocity_y = self.jump_force
-            self.on_ground = False
+        # pulo apenas quando aperta
+        if keys[pygame.K_UP]:
 
-        # Gravidade
+            if not self.jump_pressed:
+
+                self.jump_pressed = True
+
+                if self.on_ground:
+                    self.velocity_y = self.jump_force
+                    self.on_ground = False
+
+        else:
+            self.jump_pressed = False
+
         self.velocity_y += self.gravity
+
+        if self.velocity_y > 12:
+            self.velocity_y = 12
+
         self.rect.y += self.velocity_y
 
-        # Colisão vertical
         self.on_ground = False
 
-        for plat in platforms:
-            if self.rect.colliderect(plat.rect):
+        for platform in platforms:
 
-                # Caindo em cima da plataforma
-                if self.velocity_y > 0:
-                    self.rect.bottom = plat.rect.top
+                if (
+                    self.rect.colliderect(platform.rect)
+                    and self.velocity_y >= 0
+                    and self.rect.bottom - self.velocity_y <= platform.rect.top + 8
+                ):
+
+                    self.rect.bottom = platform.rect.top
                     self.velocity_y = 0
                     self.on_ground = True
 
-                # Batendo a cabeça por baixo
-                elif self.velocity_y < 0:
-                    self.rect.top = plat.rect.bottom
-                    self.velocity_y = 0
+        # animações
 
-        # Estado da animação
         if not self.on_ground:
+
             self.state = "jump"
+
         elif moving:
+
+            if self.state != "run":
+                self.frame = 0
+
             self.state = "run"
+
         else:
+
+            if self.state != "idle":
+                self.frame = 0
+
             self.state = "idle"
 
         self.animate()

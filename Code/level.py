@@ -22,8 +22,9 @@ class Level:
         self.game_mode = game_mode
 
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("Arial", 32)
-        self.big_font = pygame.font.SysFont("Arial", 72)
+        self.font = pygame.font.SysFont("Arial", 32, bold=True)
+        self.big_font = pygame.font.SysFont("Arial", 76, bold=True)
+        self.small_font = pygame.font.SysFont("Arial", 24, bold=True)
 
         self.entity_list: list[Entity] = []
         self.platforms: list[Platform] = []
@@ -43,6 +44,12 @@ class Level:
 
         self.game_over = False
         self.level_completed = False
+        self.paused = False
+
+        # Efeitos de tela
+        self.show_level_intro = True
+        self.level_intro_start = pygame.time.get_ticks()
+        self.level_intro_duration = 1800
 
         self.player_start_position = (100, 100)
 
@@ -71,6 +78,20 @@ class Level:
         self.start_pos = None
         self.temp_rect = None
 
+        self.continue_button = pygame.Rect(
+            self.window.get_width() // 2 - 150,
+            self.window.get_height() // 2 - 40,
+            300,
+            50
+        )
+
+        self.exit_button = pygame.Rect(
+            self.window.get_width() // 2 - 150,
+            self.window.get_height() // 2 + 30,
+            300,
+            50
+        )
+
         for obj in EntityFactory.get_entity("level1"):
 
             if isinstance(obj, Platform):
@@ -91,18 +112,40 @@ class Level:
         self.load_platforms()
         self.apply_level_difficulty()
 
+    def draw_text_shadow(self, text, font, color, center_pos, shadow_color=(0, 0, 0), shadow_offset=4):
+        shadow = font.render(text, True, shadow_color)
+        shadow_rect = shadow.get_rect(
+            center=(center_pos[0] + shadow_offset, center_pos[1] + shadow_offset)
+        )
+        self.window.blit(shadow, shadow_rect)
+
+        surf = font.render(text, True, color)
+        rect = surf.get_rect(center=center_pos)
+        self.window.blit(surf, rect)
+
+    def draw_dark_overlay(self, alpha=170):
+        overlay = pygame.Surface(
+            (self.window.get_width(), self.window.get_height()),
+            pygame.SRCALPHA
+        )
+        overlay.fill((0, 0, 0, alpha))
+        self.window.blit(overlay, (0, 0))
+
     def apply_level_difficulty(self):
         if self.current_level == 1:
+            self.max_score = 3
             shoot_delay = 1700
             bullet_speed = 3
             bullet_color = (255, 220, 0)
 
         elif self.current_level == 2:
+            self.max_score = 5
             shoot_delay = 1200
             bullet_speed = 5
             bullet_color = (255, 120, 0)
 
         else:
+            self.max_score = 10
             shoot_delay = 800
             bullet_speed = 7
             bullet_color = (255, 0, 0)
@@ -220,6 +263,9 @@ class Level:
         self.current_level = 1
         self.game_over = False
         self.level_completed = False
+        self.paused = False
+        self.show_level_intro = True
+        self.level_intro_start = pygame.time.get_ticks()
         self.apply_level_difficulty()
         self.reset_player()
 
@@ -233,6 +279,7 @@ class Level:
         if self.lives <= 0:
             self.lives = 0
             self.game_over = True
+            self.paused = False
             self.bullets.clear()
             print("GAME OVER")
 
@@ -245,16 +292,20 @@ class Level:
         if self.current_level > self.max_level:
             self.current_level = self.max_level
             self.level_completed = True
+            self.bullets.clear()
             print("Todos os níveis completos!")
             return
 
         self.score = 0
         self.bullets.clear()
+
         self.apply_level_difficulty()
         self.reset_player()
 
-        print(f"Indo para o nível {self.current_level}")
+        self.show_level_intro = True
+        self.level_intro_start = pygame.time.get_ticks()
 
+        print(f"Indo para o nível {self.current_level}")
     def check_level_complete(self):
         if self.score >= self.max_score:
             self.next_level()
@@ -287,6 +338,7 @@ class Level:
         for bullet in self.bullets[:]:
             bullet.update()
 
+            # Hitbox real da bala, sem aumentar
             if bullet.rect.colliderect(player.rect):
                 self.bullets.remove(bullet)
                 self.player_take_damage()
@@ -296,77 +348,371 @@ class Level:
                 self.bullets.remove(bullet)
 
     def draw_hud(self):
-        score_text = self.font.render(
+        # ==========================
+        # Balão transparente superior esquerdo
+        # ==========================
+
+        hud_panel = pygame.Surface((430, 85), pygame.SRCALPHA)
+        hud_panel.fill((0, 0, 0, 95))
+
+        pygame.draw.rect(
+            hud_panel,
+            (255, 180, 0, 180),
+            hud_panel.get_rect(),
+            2,
+            border_radius=14
+        )
+
+        self.window.blit(hud_panel, (20, 20))
+
+        # Bandeiras
+        flag_text = self.font.render(
             f"Bandeiras: {self.score}/{self.max_score}",
             True,
             (255, 255, 255)
         )
 
-        level_text = self.font.render(
-            f"Nível: {self.current_level}",
-            True,
-            (255, 255, 255)
-        )
+        self.window.blit(flag_text, (40, 43))
 
-        self.window.blit(score_text, (30, 30))
-        self.window.blit(level_text, (30, 70))
+        # Vidas na frente das informações da bandeira
+        heart_start_x = 280
+        heart_y = 40
 
         for i in range(self.max_lives):
 
             if i < self.lives:
                 self.window.blit(
                     self.heart_full,
-                    (30 + i * 45, 110)
+                    (heart_start_x + i * 45, heart_y)
                 )
             else:
                 self.window.blit(
                     self.heart_empty,
-                    (30 + i * 45, 110)
+                    (heart_start_x + i * 45, heart_y)
                 )
 
-        if self.game_over:
-            game_over_text = self.big_font.render(
-                "GAME OVER",
-                True,
-                (255, 0, 0)
-            )
+        # ==========================
+        # Nível no topo central
+        # ==========================
 
-            restart_text = self.font.render(
-                "Aperte ENTER para reiniciar",
-                True,
-                (255, 255, 255)
-            )
+        level_panel = pygame.Surface((180, 55), pygame.SRCALPHA)
+        level_panel.fill((0, 0, 0, 95))
 
-            self.window.blit(
-                game_over_text,
-                (
-                    self.window.get_width() // 2 - game_over_text.get_width() // 2,
-                    self.window.get_height() // 2 - 80
+        pygame.draw.rect(
+            level_panel,
+            (255, 180, 0, 180),
+            level_panel.get_rect(),
+            2,
+            border_radius=14
+        )
+
+        level_x = self.window.get_width() // 2 - 90
+        self.window.blit(level_panel, (level_x, 20))
+
+        level_text = self.font.render(
+            f"Nível {self.current_level}",
+            True,
+            (255, 220, 0)
+        )
+
+        self.window.blit(
+            level_text,
+            level_text.get_rect(
+                center=(self.window.get_width() // 2, 48)
+            )
+        )
+
+    def draw_level_intro(self):
+        if not self.show_level_intro:
+            return
+
+        elapsed = pygame.time.get_ticks() - self.level_intro_start
+
+        if elapsed > self.level_intro_duration:
+            self.show_level_intro = False
+            return
+
+        self.draw_dark_overlay(150)
+
+        scale = 1 + 0.08 * abs((elapsed % 600) - 300) / 300
+
+        level_text = self.big_font.render(
+            f"NÍVEL {self.current_level}",
+            True,
+            (255, 220, 0)
+        )
+
+        level_text = pygame.transform.scale(
+            level_text,
+            (
+                int(level_text.get_width() * scale),
+                int(level_text.get_height() * scale)
+            )
+        )
+
+        rect = level_text.get_rect(
+            center=(
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 - 40
+            )
+        )
+
+        shadow = self.big_font.render(
+            f"NÍVEL {self.current_level}",
+            True,
+            (0, 0, 0)
+        )
+
+        shadow = pygame.transform.scale(
+            shadow,
+            (
+                int(shadow.get_width() * scale),
+                int(shadow.get_height() * scale)
+            )
+        )
+
+        shadow_rect = shadow.get_rect(
+            center=(rect.centerx + 5, rect.centery + 5)
+        )
+
+        self.window.blit(shadow, shadow_rect)
+        self.window.blit(level_text, rect)
+
+        if self.current_level == 1:
+            info = "Tiros lentos"
+        elif self.current_level == 2:
+            info = "Tiros mais rápidos"
+        else:
+            info = "Perigo máximo!"
+
+        self.draw_text_shadow(
+            info,
+            self.font,
+            (255, 255, 255),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 + 45
+            )
+        )
+
+    def draw_game_over_screen(self):
+        if not self.game_over:
+            return
+
+        self.draw_dark_overlay(210)
+
+        pulse = pygame.time.get_ticks() % 1000
+        red = 180 + int(75 * abs(pulse - 500) / 500)
+
+        self.draw_text_shadow(
+            "GAME OVER",
+            self.big_font,
+            (red, 0, 0),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 - 100
+            ),
+            (0, 0, 0),
+            6
+        )
+
+        pygame.draw.rect(
+            self.window,
+            (30, 30, 30),
+            (
+                self.window.get_width() // 2 - 250,
+                self.window.get_height() // 2 - 20,
+                500,
+                120
+            ),
+            border_radius=18
+        )
+
+        pygame.draw.rect(
+            self.window,
+            (255, 0, 0),
+            (
+                self.window.get_width() // 2 - 250,
+                self.window.get_height() // 2 - 20,
+                500,
+                120
+            ),
+            3,
+            border_radius=18
+        )
+
+        self.draw_text_shadow(
+            "ENTER  Reiniciar",
+            self.font,
+            (255, 255, 255),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 + 25
+            )
+        )
+
+        self.draw_text_shadow(
+            "ESC  Voltar ao menu",
+            self.font,
+            (255, 220, 0),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 + 70
+            )
+        )
+
+    def draw_victory_screen(self):
+        if not self.level_completed:
+            return
+
+        self.draw_dark_overlay(200)
+
+        self.draw_text_shadow(
+            "VOCÊ VENCEU!",
+            self.big_font,
+            (255, 220, 0),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 - 90
+            ),
+            (0, 0, 0),
+            6
+        )
+
+        self.draw_text_shadow(
+            "Todas as dificuldades foram concluídas!",
+            self.font,
+            (255, 255, 255),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2
+            )
+        )
+
+        self.draw_text_shadow(
+            "ESC  Voltar ao menu",
+            self.font,
+            (255, 220, 0),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 + 60
+            )
+        )
+
+    def draw_pause_menu(self):
+        self.draw_dark_overlay(170)
+
+        self.draw_text_shadow(
+            "PAUSADO",
+            self.big_font,
+            (255, 255, 255),
+            (
+                self.window.get_width() // 2,
+                self.window.get_height() // 2 - 140
+            ),
+            (0, 0, 0),
+            5
+        )
+
+        pygame.draw.rect(
+            self.window,
+            (255, 180, 0),
+            self.continue_button,
+            border_radius=12
+        )
+
+        pygame.draw.rect(
+            self.window,
+            (180, 40, 40),
+            self.exit_button,
+            border_radius=12
+        )
+
+        continue_text = self.font.render(
+            "Continuar",
+            True,
+            (0, 0, 0)
+        )
+
+        exit_text = self.font.render(
+            "Sair para o menu",
+            True,
+            (255, 255, 255)
+        )
+
+        self.window.blit(
+            continue_text,
+            continue_text.get_rect(center=self.continue_button.center)
+        )
+
+        self.window.blit(
+            exit_text,
+            exit_text.get_rect(center=self.exit_button.center)
+        )
+
+    def handle_pause_click(self, mouse_pos):
+        if self.continue_button.collidepoint(mouse_pos):
+            self.paused = False
+
+        if self.exit_button.collidepoint(mouse_pos):
+            return "menu"
+
+        return None
+
+    def draw_game_world(self):
+        # Limpa a tela inteira antes de redesenhar tudo
+        self.window.fill((0, 0, 0))
+
+        for ent in self.entity_list:
+            self.window.blit(ent.surf, ent.rect)
+
+        for chest in self.chests:
+            self.window.blit(chest.surf, chest.rect)
+
+        for flag in self.flags:
+            flag.move()
+            self.window.blit(flag.surf, flag.rect)
+
+        for enemy in self.enemies:
+            self.window.blit(enemy.surf, enemy.rect)
+
+        # Desenha balas apenas dentro da área do mapa
+        map_area = pygame.Rect(
+            0,
+            0,
+            self.window.get_width(),
+            self.window.get_height()
+        )
+
+        for bullet in self.bullets:
+            if map_area.colliderect(bullet.rect):
+                self.window.blit(bullet.surf, bullet.rect)
+
+        if self.editor_mode:
+
+            for plat in self.platforms:
+                pygame.draw.rect(
+                    self.window,
+                    (255, 0, 0),
+                    plat.rect,
+                    2
                 )
-            )
 
-            self.window.blit(
-                restart_text,
-                (
-                    self.window.get_width() // 2 - restart_text.get_width() // 2,
-                    self.window.get_height() // 2
+            for chest in self.chests:
+                pygame.draw.rect(
+                    self.window,
+                    (0, 0, 255),
+                    chest.rect,
+                    2
                 )
-            )
 
-        if self.level_completed:
-            complete_text = self.big_font.render(
-                "VOCÊ VENCEU!",
-                True,
-                (255, 255, 0)
-            )
-
-            self.window.blit(
-                complete_text,
-                (
-                    self.window.get_width() // 2 - complete_text.get_width() // 2,
-                    self.window.get_height() // 2 - 80
+            if self.temp_rect:
+                pygame.draw.rect(
+                    self.window,
+                    (0, 255, 0),
+                    self.temp_rect,
+                    2
                 )
-            )
 
     def run(self):
 
@@ -380,24 +726,48 @@ class Level:
 
                 if event.type == pygame.KEYDOWN:
 
-                    if event.key == pygame.K_RETURN and self.game_over:
+                    if event.key == pygame.K_ESCAPE:
+
+                        if self.game_over or self.level_completed:
+                            return "menu"
+
+                        self.paused = not self.paused
+
+                    elif event.key == pygame.K_RETURN and self.game_over:
                         self.restart_game()
 
-                    if event.key == pygame.K_F1:
+                    elif event.key == pygame.K_F1 and not self.game_over:
                         self.editor_mode = not self.editor_mode
 
-                    if event.key == pygame.K_s:
+                    elif event.key == pygame.K_s:
                         keys = pygame.key.get_pressed()
 
                         if keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]:
                             self.save_platforms()
 
-                if self.editor_mode:
+                if self.paused and event.type == pygame.MOUSEBUTTONDOWN:
+
+                    if event.button == 1:
+                        pause_return = self.handle_pause_click(event.pos)
+
+                        if pause_return == "menu":
+                            return "menu"
+
+                if self.editor_mode and not self.paused:
                     self.handle_editor_events(event)
 
             player = self.get_player()
 
-            if not self.game_over and not self.level_completed:
+            if self.paused:
+                self.draw_game_world()
+                self.draw_hud()
+                self.draw_pause_menu()
+
+                pygame.display.flip()
+                self.clock.tick(60)
+                continue
+
+            if not self.game_over and not self.level_completed and not self.show_level_intro:
 
                 for ent in self.entity_list:
 
@@ -418,49 +788,11 @@ class Level:
                 if player:
                     self.update_bullets(player)
 
-            for ent in self.entity_list:
-                self.window.blit(ent.surf, ent.rect)
-
-            for chest in self.chests:
-                self.window.blit(chest.surf, chest.rect)
-
-            for flag in self.flags:
-                flag.move()
-                self.window.blit(flag.surf, flag.rect)
-
-            for enemy in self.enemies:
-                self.window.blit(enemy.surf, enemy.rect)
-
-            for bullet in self.bullets:
-                self.window.blit(bullet.surf, bullet.rect)
-
-            if self.editor_mode:
-
-                for plat in self.platforms:
-                    pygame.draw.rect(
-                        self.window,
-                        (255, 0, 0),
-                        plat.rect,
-                        2
-                    )
-
-                for chest in self.chests:
-                    pygame.draw.rect(
-                        self.window,
-                        (0, 0, 255),
-                        chest.rect,
-                        2
-                    )
-
-                if self.temp_rect:
-                    pygame.draw.rect(
-                        self.window,
-                        (0, 255, 0),
-                        self.temp_rect,
-                        2
-                    )
-
+            self.draw_game_world()
             self.draw_hud()
+            self.draw_level_intro()
+            self.draw_game_over_screen()
+            self.draw_victory_screen()
 
             pygame.display.flip()
             self.clock.tick(60)

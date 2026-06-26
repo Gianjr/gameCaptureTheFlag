@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pygame
+import random
 from Code.bullet import Bullet
 
 
@@ -13,37 +14,59 @@ class Enemy:
         self.width = 66
         self.height = 66
 
-        self.frames = [
-            pygame.image.load("./assets/enemy/Attack/sprite_0.png").convert_alpha(),
-            pygame.image.load("./assets/enemy/Attack/sprite_1.png").convert_alpha(),
-            pygame.image.load("./assets/enemy/Attack/sprite_2.png").convert_alpha(),
-            pygame.image.load("./assets/enemy/Attack/sprite_3.png").convert_alpha()
-        ]
-
-        self.frames = [
-            pygame.transform.scale(frame, (self.width, self.height))
-            for frame in self.frames
-        ]
+        self.frames = self.load_frames()
 
         self.frame = 0
-        self.animation_speed = 0.12
+        self.animation_speed = 0.10
 
         self.surf = self.frames[0]
         self.rect = self.surf.get_rect(topleft=position)
 
-        # Se a imagem estiver virada errada, troque este valor:
-        # True  = inverte a imagem
-        # False = mantém normal
         self.invert_sprite = True
-
         self.facing_right = False
 
         self.last_shot_time = 0
 
-        # Será alterado pelo Level conforme a dificuldade
-        self.shoot_delay = 1600
-        self.bullet_speed = 4
+        self.shoot_delay = 1700
+        self.bullet_speed = 3
         self.bullet_color = (255, 220, 0)
+
+    def load_frames(self):
+        frames = []
+
+        possible_paths = [
+            "./assets/enemy/Attack/sprite_{}.png",
+            "./assets/enemy/Idle/sprite_{}.png",
+            "./assets/enemy/Enemy_idle/sprite_{}.png",
+            "./assets/enemy/Soldier_idle/sprite_{}.png",
+        ]
+
+        for i in range(4):
+            image_loaded = None
+
+            for path in possible_paths:
+                try:
+                    image_loaded = pygame.image.load(
+                        path.format(i)
+                    ).convert_alpha()
+                    break
+                except:
+                    pass
+
+            if image_loaded is None:
+                image_loaded = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+                pygame.draw.rect(image_loaded, (120, 0, 180), (10, 10, 76, 76))
+                pygame.draw.rect(image_loaded, (255, 255, 255), (30, 30, 12, 12))
+                pygame.draw.rect(image_loaded, (255, 255, 255), (55, 30, 12, 12))
+
+            image_loaded = pygame.transform.scale(
+                image_loaded,
+                (self.width, self.height)
+            )
+
+            frames.append(image_loaded)
+
+        return frames
 
     def set_difficulty(self, shoot_delay, bullet_speed, bullet_color):
         self.shoot_delay = shoot_delay
@@ -79,11 +102,15 @@ class Enemy:
         if now - self.last_shot_time >= self.shoot_delay:
             self.last_shot_time = now
 
+            # Pequena variação para o tiro não ficar sempre igual
+            aim_offset_x = random.randint(-25, 25)
+            aim_offset_y = random.randint(-20, 20)
+
             bullet = Bullet(
                 self.rect.centerx,
                 self.rect.centery,
-                player.rect.centerx,
-                player.rect.centery,
+                player.rect.centerx + aim_offset_x,
+                player.rect.centery + aim_offset_y,
                 self.bullet_speed,
                 self.bullet_color
             )
