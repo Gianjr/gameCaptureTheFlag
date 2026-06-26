@@ -16,7 +16,7 @@ class Menu:
         # 1. Configurações iniciais FORA do loop
         global menu_option
         menu_option = 0
-        pygame.mixer_music.load("./assets/musica_menu.wav")
+        pygame.mixer_music.load("./assets/music/musica_menu.wav")
         pygame.mixer_music.play(-1)
 
         while True:

@@ -6,6 +6,7 @@ from Code.player import Player
 from Code.platform import Platform
 from Code.flag import Flag
 from Code.chest import Chest
+from Code.enemy import Enemy
 
 
 class EntityFactory:
@@ -19,10 +20,11 @@ class EntityFactory:
 
                 Player((100, 100)),
 
-                Flag((1350, 320)),
+                Flag((1350, 325)),
 
-                # Baú / ponto de entrega da bandeira
-                Chest((142, 350)),
+                Chest((145, 337)),
+
+                Enemy((1350, 76)),
 
                 Platform(0, 650, 1280, 70),
                 Platform(250, 520, 250, 30),

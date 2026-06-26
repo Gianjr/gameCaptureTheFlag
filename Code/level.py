@@ -11,6 +11,7 @@ from Code.platform import Platform
 from Code.player import Player
 from Code.flag import Flag
 from Code.chest import Chest
+from Code.enemy import Enemy
 
 
 class Level:
@@ -22,13 +23,48 @@ class Level:
 
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("Arial", 32)
+        self.big_font = pygame.font.SysFont("Arial", 72)
 
         self.entity_list: list[Entity] = []
         self.platforms: list[Platform] = []
         self.flags: list[Flag] = []
         self.chests: list[Chest] = []
+        self.enemies: list[Enemy] = []
+        self.bullets = []
 
         self.score = 0
+        self.max_score = 5
+
+        self.lives = 3
+        self.max_lives = 3
+
+        self.current_level = 1
+        self.max_level = 3
+
+        self.game_over = False
+        self.level_completed = False
+
+        self.player_start_position = (100, 100)
+
+        self.heart_size = (40, 40)
+
+        self.heart_full = pygame.image.load(
+            "./assets/heart/full.png"
+        ).convert_alpha()
+
+        self.heart_empty = pygame.image.load(
+            "./assets/heart/empty.png"
+        ).convert_alpha()
+
+        self.heart_full = pygame.transform.scale(
+            self.heart_full,
+            self.heart_size
+        )
+
+        self.heart_empty = pygame.transform.scale(
+            self.heart_empty,
+            self.heart_size
+        )
 
         self.editor_mode = False
         self.drawing = False
@@ -46,10 +82,37 @@ class Level:
             elif isinstance(obj, Chest):
                 self.chests.append(obj)
 
+            elif isinstance(obj, Enemy):
+                self.enemies.append(obj)
+
             else:
                 self.entity_list.append(obj)
 
         self.load_platforms()
+        self.apply_level_difficulty()
+
+    def apply_level_difficulty(self):
+        if self.current_level == 1:
+            shoot_delay = 1700
+            bullet_speed = 3
+            bullet_color = (255, 220, 0)
+
+        elif self.current_level == 2:
+            shoot_delay = 1200
+            bullet_speed = 5
+            bullet_color = (255, 120, 0)
+
+        else:
+            shoot_delay = 800
+            bullet_speed = 7
+            bullet_color = (255, 0, 0)
+
+        for enemy in self.enemies:
+            enemy.set_difficulty(
+                shoot_delay,
+                bullet_speed,
+                bullet_color
+            )
 
     def save_platforms(self):
         data = []
@@ -138,6 +201,64 @@ class Level:
 
         return None
 
+    def reset_player(self):
+        player = self.get_player()
+
+        if player:
+            player.rect.topleft = self.player_start_position
+            player.velocity_y = 0
+            player.on_ground = False
+
+        self.bullets.clear()
+
+        for flag in self.flags:
+            flag.reset()
+
+    def restart_game(self):
+        self.score = 0
+        self.lives = self.max_lives
+        self.current_level = 1
+        self.game_over = False
+        self.level_completed = False
+        self.apply_level_difficulty()
+        self.reset_player()
+
+    def player_take_damage(self):
+        if self.game_over:
+            return
+
+        self.lives -= 1
+        print(f"Player levou dano! Vidas: {self.lives}")
+
+        if self.lives <= 0:
+            self.lives = 0
+            self.game_over = True
+            self.bullets.clear()
+            print("GAME OVER")
+
+        else:
+            self.reset_player()
+
+    def next_level(self):
+        self.current_level += 1
+
+        if self.current_level > self.max_level:
+            self.current_level = self.max_level
+            self.level_completed = True
+            print("Todos os níveis completos!")
+            return
+
+        self.score = 0
+        self.bullets.clear()
+        self.apply_level_difficulty()
+        self.reset_player()
+
+        print(f"Indo para o nível {self.current_level}")
+
+    def check_level_complete(self):
+        if self.score >= self.max_score:
+            self.next_level()
+
     def check_flag_system(self):
         player = self.get_player()
 
@@ -157,15 +278,95 @@ class Level:
                         self.score += 1
                         chest.open_chest()
                         flag.reset()
+                        self.check_level_complete()
 
-    def draw_score(self):
+    def update_bullets(self, player):
+        screen_width = self.window.get_width()
+        screen_height = self.window.get_height()
+
+        for bullet in self.bullets[:]:
+            bullet.update()
+
+            if bullet.rect.colliderect(player.rect):
+                self.bullets.remove(bullet)
+                self.player_take_damage()
+                continue
+
+            if bullet.is_off_screen(screen_width, screen_height):
+                self.bullets.remove(bullet)
+
+    def draw_hud(self):
         score_text = self.font.render(
-            f"Pontos: {self.score}",
+            f"Bandeiras: {self.score}/{self.max_score}",
+            True,
+            (255, 255, 255)
+        )
+
+        level_text = self.font.render(
+            f"Nível: {self.current_level}",
             True,
             (255, 255, 255)
         )
 
         self.window.blit(score_text, (30, 30))
+        self.window.blit(level_text, (30, 70))
+
+        for i in range(self.max_lives):
+
+            if i < self.lives:
+                self.window.blit(
+                    self.heart_full,
+                    (30 + i * 45, 110)
+                )
+            else:
+                self.window.blit(
+                    self.heart_empty,
+                    (30 + i * 45, 110)
+                )
+
+        if self.game_over:
+            game_over_text = self.big_font.render(
+                "GAME OVER",
+                True,
+                (255, 0, 0)
+            )
+
+            restart_text = self.font.render(
+                "Aperte ENTER para reiniciar",
+                True,
+                (255, 255, 255)
+            )
+
+            self.window.blit(
+                game_over_text,
+                (
+                    self.window.get_width() // 2 - game_over_text.get_width() // 2,
+                    self.window.get_height() // 2 - 80
+                )
+            )
+
+            self.window.blit(
+                restart_text,
+                (
+                    self.window.get_width() // 2 - restart_text.get_width() // 2,
+                    self.window.get_height() // 2
+                )
+            )
+
+        if self.level_completed:
+            complete_text = self.big_font.render(
+                "VOCÊ VENCEU!",
+                True,
+                (255, 255, 0)
+            )
+
+            self.window.blit(
+                complete_text,
+                (
+                    self.window.get_width() // 2 - complete_text.get_width() // 2,
+                    self.window.get_height() // 2 - 80
+                )
+            )
 
     def run(self):
 
@@ -179,6 +380,9 @@ class Level:
 
                 if event.type == pygame.KEYDOWN:
 
+                    if event.key == pygame.K_RETURN and self.game_over:
+                        self.restart_game()
+
                     if event.key == pygame.K_F1:
                         self.editor_mode = not self.editor_mode
 
@@ -191,17 +395,28 @@ class Level:
                 if self.editor_mode:
                     self.handle_editor_events(event)
 
-            for ent in self.entity_list:
+            player = self.get_player()
 
-                if isinstance(ent, Player):
-                    ent.update(self.platforms)
-                else:
-                    ent.move()
+            if not self.game_over and not self.level_completed:
 
-            for chest in self.chests:
-                chest.update()
+                for ent in self.entity_list:
 
-            self.check_flag_system()
+                    if isinstance(ent, Player):
+                        ent.update(self.platforms)
+                    else:
+                        ent.move()
+
+                if player:
+                    for enemy in self.enemies:
+                        enemy.update(player, self.bullets)
+
+                for chest in self.chests:
+                    chest.update()
+
+                self.check_flag_system()
+
+                if player:
+                    self.update_bullets(player)
 
             for ent in self.entity_list:
                 self.window.blit(ent.surf, ent.rect)
@@ -212,6 +427,12 @@ class Level:
             for flag in self.flags:
                 flag.move()
                 self.window.blit(flag.surf, flag.rect)
+
+            for enemy in self.enemies:
+                self.window.blit(enemy.surf, enemy.rect)
+
+            for bullet in self.bullets:
+                self.window.blit(bullet.surf, bullet.rect)
 
             if self.editor_mode:
 
@@ -239,7 +460,7 @@ class Level:
                         2
                     )
 
-            self.draw_score()
+            self.draw_hud()
 
             pygame.display.flip()
             self.clock.tick(60)
